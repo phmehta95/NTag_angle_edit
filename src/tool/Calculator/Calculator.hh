@@ -18,14 +18,19 @@
 #include <unistd.h>
 #include <string>
 #include <cmath>
-
+#include <random>
 #include <TRandom3.h>
 #include <TString.h>
 #include <TVector3.h>
 
+#include "TTree.h"
+#include "TreeManager.h"
+#include "SuperManager.h"
+#include <fstream>
+
 /** Global random number generator */
 extern TRandom3 ranGen;
-
+extern std::default_random_engine c_ranGen;
 extern "C"
 {
     /**
@@ -213,6 +218,10 @@ float GetDWallInDirection(TVector3 vtx, TVector3 dir);
  */
 float GetDWall(TVector3 vtx);
 
+
+float GetCherenkovAngle(float *bonsaivertex, bool limithits = true);
+
+
 /**
  * @brief Returns the index of the minimum value in a given vector.
  * @param vec The input vector.
@@ -242,6 +251,18 @@ T PickRandom(const std::vector<T>& vec)
     int pickedIndex = (int)(nFiles * ranGen.Rndm());
     return vec[pickedIndex];
 }
+
+
+/**
+ * @brief Shuffle a given vector.
+ * @param vec The input vector.
+ */
+template <typename T>
+void Shuffle(std::vector<T>& vec)
+{
+    std::shuffle(std::begin(vec), std::end(vec), c_ranGen);
+}
+
 
 /**
  * @brief Pick a random subdirectory from a given path.
@@ -313,5 +334,38 @@ namespace Calc
     const std::function<float(const std::vector<float>&)> Mean = std::bind(GetMean<float>, std::placeholders::_1);
     const std::function<float(const std::vector<float>&)> RMS  = std::bind(GetRMS<float>, std::placeholders::_1);
 }
+
+const int NMIS    = 17;
+const int MISCH[] = {
+  7667,
+  7686,
+  8937,
+  8980,
+  9283,
+  9312,
+  9339,
+  9362,
+  9415,
+  9434,
+  9817,
+  10685,
+  10728,
+  11031,
+  11060,
+  11087,
+  11110
+};
+
+double angledown;
+double angleup;
+double tchelow;
+double tchehigh;
+TH1 *hcheren;
+int nstep;
+int anglebinnum;
+Float_t plotcontent[1000];
+ 
+
+
 
 #endif

@@ -95,7 +95,13 @@ void EventNTagManager::ReadPromptVertex(VertexMode mode)
         int isFromIDWall = 1;
         float vertex[3] = {skroot_lowe_.bsvertex[0], skroot_lowe_.bsvertex[1], skroot_lowe_.bsvertex[2]};
         float pointOnWall[3] = {0, 0, 0};
+	//double peakangle = 0.0;
         fEventVariables.Set("EffWall", effwallf_(&isFromIDWall, vertex, skroot_lowe_.bsdir, pointOnWall));
+	fEventVariables.Set("CherenkovAngle", GetCherenkovAngle(vertex,true));
+	//GetCherenkovAngle(vertex,true);
+	//GetCherenkovAngle(vertex,false);
+	//fEventVariables.Set("CherenkovAngle", peakangle);
+
     }
 
     else if (mode == mBONSAI && fFileFormat == mSKROOT) {

@@ -1,6 +1,6 @@
 # prompt vertex
 # available options: none, apfit, bonsai, custom, true, stmu, fitqun
-prompt_vertex  custom 
+prompt_vertex  bonsai 
 vx             0
 vy             0
 vz             0

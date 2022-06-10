@@ -9,11 +9,46 @@
 #include <TList.h>
 #include <TSystemDirectory.h>
 #include <TSystemFile.h>
-
+#include "TMath.h"
 #include <geotnkC.h>
 
 #include "Calculator.hh"
+#include "skparmC.h"
+#include "sktqC.h"
+#include "skheadC.h"
+#include "apmringC.h"
+#include "apmueC.h"
+#include "apmsfitC.h"
+#include "appatspC.h"
+#include "apringspC.h"
+#include "skroot_loweC.h"
+#include "spliTChanOutC.h"
+#include "fitqunoutC.h"
+#include "geotnkC.h"
+#include "neworkC.h"
+#include "nbnkC.h"
+#include "skonl/softtrg_cond.h"
 
+#include "SKLibs.hh"
+#include "SKIO.hh"
+#include "GetStopMuVertex.hh"
+#include "NTagBankIO.hh"
+#include "Calculator.hh"
+#include "NoiseManager.hh"
+#include "EventNTagManager.hh"
+
+#include "TROOT.h"
+#include "TTree.h"
+#include "TFile.h"
+#include "TH1D.h"
+#include "TF1.h"
+#include "TMath.h"
+#include "TVirtualFitter.h"
+#include "TFitResultPtr.h"
+#include "TFitResult.h"
+#include "TreeManager.h"
+
+std::default_random_engine c_ranGen;
 TRandom3 ranGen;
 
 float Dot(const float a[3], const float b[3])
@@ -139,7 +174,8 @@ unsigned int GetMaxIndex(std::vector<float>& vec)
 
 void SetSeed(int seed)
 {
-    ranGen.SetSeed(seed);
+  c_ranGen.seed(seed);
+  ranGen.SetSeed(seed);
 }
 
 TString PickFile(TString dirPath, const char* extension)
@@ -267,3 +303,324 @@ std::vector<std::string> Split(std::string target, std::string delim)
     }
     return v;
 }
+
+
+
+  Bool_t checkMiss (const Int_t cab)
+{
+  for (Int_t i=0; i<NMIS; i++) {
+    if ( MISCH[i] == cab ) return kTRUE;
+  }
+  return kFALSE;
+}
+
+int getNhits(Float_t *v, int start_index, Float_t width, int nhits)
+// Get nhits from v[0] in time window = width
+// v[] - hit timing, sorted in time
+// width - time window width
+// start_index - index of start pmt hit
+// nhits - total number  of v[] hits
+{
+    int i = start_index;
+    while (1) {
+        i++;
+        if((i > nhits-1 ) || (TMath::Abs((v[i]-v[start_index])) > width)) break;
+    }
+    return TMath::Abs(i - start_index);
+}
+
+
+
+
+
+void MaxHitsInWindow(Float_t *t, int ALLHITS, float width, int &maxnhits, int &maxindex)
+{
+    maxnhits = 0;
+    maxindex = 0;
+
+    //Finding max N15 and its index, limiting potential number of hits
+    for (int in = 0; in < ALLHITS; in++) {
+
+        // Limit to -500 to 1500 ns time window
+        //if ( t[in] < tchelow)  continue;
+        //if ( t[in] > tchehigh) continue;
+
+        // Calculate hits in 15 ns window
+        int N = getNhits(t, in, width, ALLHITS);
+        if ( N > maxnhits) {
+            maxnhits = N;
+            maxindex = in;
+        }
+    }//ALLHITS
+}
+
+
+Double_t lfrsqrt(Double_t a2, Double_t b2, Double_t c2)
+{
+  Double_t rsquare=0.0;
+  Double_t tmpr2=0.0;
+
+  //++allCount;
+
+  tmpr2= a2*(2.*b2-a2) + b2*(2.*c2-b2) + c2*(2.*a2-c2);
+  if (tmpr2>0){
+    rsquare= a2*b2*c2/tmpr2;
+  }else {
+      //++negativeCount;
+      //printf("lfrsqrd: Problem: %f, %f, %f, %f.\n", tmpr2, a2, b2, c2);
+    return 2;
+  }
+
+  return rsquare;
+}
+
+
+
+
+void MinimumWidthWindow(Float_t *t, int ALLHITS, float width, int &maxnhits, int &maxindex)
+{
+    // ----------------------------------------------------------------------
+    // ---- get time ordered tof subtracted (vertex)
+    // ----------------------------------------------------------------------
+
+    // v is already sorted
+
+
+    // ----------------------------------------------------------------------
+    // ---- scan for the requested number of hits
+    // ----------------------------------------------------------------------
+
+    double dt   = 100000.;
+    for (int i = 0; i < ALLHITS-maxnhits; i++) {
+      //if ( t[i] < tchelow)  continue;
+      //if ( t[i] > tchehigh) continue;
+
+        if (t[i+maxnhits] - t[i] < dt) {
+            dt = t[i+maxnhits] - t[i];
+        }
+    }
+
+
+    // ----------------------------------------------------------------------
+    // ---- if dt too big, find maximal number of hits fitting into twindow
+    // ----------------------------------------------------------------------
+
+    if (dt > width) {
+    //    if (verbose)
+    //  std::cout << "dt too wide: "std::endl;
+        MaxHitsInWindow(t, ALLHITS, width, maxnhits, maxindex);
+    }
+    //else {
+    //   if (verbose)
+    //std::cout << "MinimumWidthWindow, maxnhits=" << maxnhits << ", maxindex=" << maxindex << std::endl;
+    //}
+
+}
+
+float GetCherenkovAngle(float *bonsaivertex, bool limithits)
+{
+
+    int nstep = 100;
+    angledown = 0;
+    angleup   = 90;
+    tchelow   = -500;
+    tchehigh  = 1500;
+    hcheren = new TH1D("hcheren", "Opening Cherenkov Angle from 3-PMT combinations", nstep, angledown, angleup);
+
+  
+  Int_t goodcount=0, ipmt;
+  for (int i=0;i<sktqz_.nqiskz;i++){
+        if (sktqz_.ihtiflz[i]&0x02 && sktqz_.icabiz[i] <= MAXPM && !checkMiss(sktqz_.icabiz[i]) && sktqz_.ihtiflz[i]&0x01){ //check if hits are in gate and not on bad/missing channels and hits that are main event
+            goodcount+=1;
+  
+}
+  }
+   const Int_t MAXN10 = 200;
+
+    const int ALLHITS = goodcount;
+    const Float_t C_WATER = 21.5833;
+
+    Int_t   cabiz[ALLHITS], cabiz2[ALLHITS];
+    Float_t tiskz[ALLHITS], tiskz2[ALLHITS];
+    Float_t qiskz[ALLHITS], qiskz2[ALLHITS];
+    Int_t   index[ALLHITS], nindex[MAXN10];
+    Double_t dhit[3], dtmp;
+    Float_t hitv_x[ALLHITS];
+    Float_t hitv_y[ALLHITS];
+    Float_t hitv_z[ALLHITS];
+    Double_t rsqrd, opang, rnosq;
+    Int_t icount=0;
+
+    // Copy the TQ arrays
+    
+      for (int i=0; i<sktqz_.nqiskz; i++)
+        {
+          if (sktqz_.ihtiflz[i]&0x02 && sktqz_.icabiz[i] <= MAXPM  && !checkMiss(sktqz_.icabiz[i]\
+) && sktqz_.ihtiflz[i]&0x01) //check if hits are in gate and not on bad/missing channels and hits that are main event
+            {
+              cabiz2[icount] = sktqz_.icabiz[i];
+              tiskz2[icount] = sktqz_.tiskz[i];
+              qiskz2[icount] = sktqz_.qiskz[i];
+              icount+=1;
+            }
+
+
+	}
+	
+// TOF subtraction for all hits in copied arrays
+    for (int i=0; i<ALLHITS; i++) {
+        //if (i % 100 == 0)     cout << "position : " << cabiz2[i]-1<<  geopmt_.xyzpm[cabiz2[i]-1][0]<<endl;
+        Float_t tof;
+        tof = TMath::Sqrt((bonsaivertex[0] - geopmt_.xyzpm[cabiz2[i]-1][0]) * (bonsaivertex[0] - geopmt_.xyzpm[cabiz2[i]-1][0])
+                          +(bonsaivertex[1] - geopmt_.xyzpm[cabiz2[i]-1][1]) * (bonsaivertex[1] - geopmt_.xyzpm[cabiz2[i]-1][1])
+                          +(bonsaivertex[2] - geopmt_.xyzpm[cabiz2[i]-1][2]) * (bonsaivertex[2] - geopmt_.xyzpm[cabiz2[i]-1][2])) / C_WATER;
+        tiskz2[i] -= tof;
+
+	//std::cout << "TOF CORRECTED HIT TIMES: " << tiskz2[i] << std::endl;
+    }
+
+
+    // Sort hits by TOF-corrected time
+    TMath::Sort(ALLHITS, tiskz2, index, kFALSE); // In increasing order
+    for (int i=0; i<ALLHITS; i++){
+        cabiz[i] = cabiz2[ index[i] ];
+        tiskz[i] = tiskz2[ index[i] ];
+        qiskz[i] = qiskz2[ index[i] ];
+    }
+
+    int N15      = 0;
+    int N15index = 0;
+    //std::cout << "DBG1" << std::endl;
+    if (limithits)   {
+      //std::cout << "DBG2" << std::endl;
+
+       N15 = 183;
+       //std::cout << "DBG3" << std::endl;
+
+       MinimumWidthWindow(tiskz, ALLHITS, 15., N15, N15index);
+       //std::cout << "DBG30" <<std::endl;
+    }
+    //std::cout << "DBG4" << std::endl;
+    else {
+    //  std::cout << "DBG5" << std::endl;
+    MaxHitsInWindow(tiskz, ALLHITS, 15., N15, N15index);
+    }
+
+
+
+    
+    int maxncmb = N15*N15*N15 / 6;
+    std::vector<double> abc2(N15*N15, 0.0);
+    //std::vector<double> abc2(ALLHITS*ALLHITS, 0.0);
+    std::vector<double> maxcmb(maxncmb, 0.0);
+
+    hcheren->Reset();
+
+    for (int ii=N15index; ii < N15index+N15; ii++){
+    //for (int ii=N15index; ii < ; ii++){
+      //std::cout << "ii" << ii << std::endl;
+      //std::cout << "N15index" << N15index << std::endl;
+      //std::cout << "N15" << N15 << std::endl;
+        for (int jj=0; jj<3; jj++){
+	  dhit[jj] = geopmt_.xyzpm[cabiz[ii]-1][jj]- bonsaivertex[jj];
+	  //std::cout << "dhit" << dhit[jj] << std::endl;
+	  //  std::cout << "dhit0" << dhit[0] << std::endl;
+	  //  std::cout << "dhit1" << dhit[1] << std::endl;
+	  //  std::cout << "dhit2" << dhit[2] << std::endl;
+        }
+        //dtmp= 1.0/TMath::Sqrt(dhit[0]*dhit[0]+dhit[1]*dhit[1]+dhit[2]*dhit[2]);
+	dtmp=1.0/(TMath::Sqrt(dhit[0]*dhit[0]+dhit[1]*dhit[1]+dhit[2]*dhit[2]));
+	//std::cout << "DTMP " << dtmp << std::endl;
+	int intmp= ii-N15index;
+	//int intmp=ii;
+	hitv_x[intmp]= dhit[0]*dtmp;
+        hitv_y[intmp]= dhit[1]*dtmp;
+        hitv_z[intmp]= dhit[2]*dtmp;
+    }
+
+    int tmpindex_a=0, tmpindex_b=0, tmpindex_c=0;
+    //Calculate lengths of difference vectors between directions
+    for (int aa = 0; aa < N15-1; aa++) {
+      //for (int aa = 0; aa < ALLHITS-1; aa++) {
+      for (int bb=aa+1; bb<N15; bb++) {
+	//for (int bb=aa+1; bb<ALLHITS; bb++) {
+	tmpindex_a=aa*N15+bb;
+	// tmpindex_a=aa*ALLHITS+bb;
+            abc2[tmpindex_a] = (hitv_x[aa]-hitv_x[bb])*(hitv_x[aa]-hitv_x[bb])+(hitv_y[aa]-hitv_y[bb])*(hitv_y[aa]-hitv_y[bb])+(hitv_\
+z[aa]-hitv_z[bb])*(hitv_z[aa]-hitv_z[bb]);
+	    //std::cout << "abc2: " << abc2[tmpindex_a] << std::endl;
+	}
+    }
+       //Do all direction triangles and fill histogram
+          for (int aa=0;aa<N15-2;aa++){
+      //for (int aa=0;aa<ALLHITS-2;aa++){
+	  for (int bb=aa+1;bb<N15-1;bb++){
+	//for (int bb=aa+1;bb<ALLHITS-1;bb++){
+            tmpindex_a=aa*N15+bb;
+            //dtmp= abc2[aa][bb];
+            dtmp= abc2[tmpindex_a];
+	    //std::cout << "dtmp " << dtmp << std::endl;
+            for (int cc=bb+1;cc<N15;cc++){
+                tmpindex_b=aa*N15+cc;
+                tmpindex_c=bb*N15+cc;
+		//std::cout << "tmpindex_b" << tmpindex_b << std::endl;
+		//std::cout << "tmpindex_c" << tmpindex_c << std::endl;
+		rsqrd = lfrsqrt(dtmp, abc2[tmpindex_b], abc2[tmpindex_c]);
+		//std::cout << "rsqrd " << rsqrd << std::endl;
+                rnosq = TMath::Sqrt(rsqrd);
+		//std::cout << "RNOSQ " << rnosq << std::endl;
+                opang = TMath::ASin(rnosq)*180.0/TMath::Pi();
+		//return opang;
+                // if rnosq>1-->return pi/2
+		//std::cout << "OPANG " << opang << std::endl;
+                hcheren->Fill(opang);
+		//hcheren->Draw();
+            }
+        }
+    }
+
+
+      
+    Double_t unpack[nstep], b2deg=0.0, lsum=0.0;
+    int nwindow=7, midpoint=3, look=100;
+    int ilowbnd=41, ihibnd=67;
+    int nrange, llook, ij=0, locale=0;
+    Double_t lheight=0, peakangle=0.0;
+
+    //std::cout << "NSTEP" << nstep << std::endl;
+    //std::cout << "UNPACK" << unpack[nstep] << std::endl;
+
+    nrange = nstep-nwindow+1;
+    //std::cout << "NRANGE" << nrange << std::endl;
+    b2deg  = 90.0/100.0;
+
+    anglebinnum= nstep;
+    for(int hh=0;hh<nstep;hh++){
+        unpack[hh]=hcheren->GetBinContent(hh+1);
+        plotcontent[hh] = hcheren->GetBinContent(hh);
+	//std::cout << "UNPACKnew" << unpack[nstep] << std::endl;
+    }
+    for(int ii=0;ii<nrange;ii++){
+        lsum=0.0;
+        for (int jj=0;jj<nwindow;jj++){
+            ij=ii+jj;
+            lsum+=unpack[ij];
+	    //std::cout << "lsum" << lsum << std::endl;
+        }
+        if (lheight<lsum){
+            lheight=lsum;
+            locale=ii+1+midpoint;}
+	//std::cout << "locale" << locale << std::endl;
+    }
+    peakangle=locale*b2deg;
+    //hcheren->Draw();
+    //std::cout << "peakangle" << peakangle << std::endl;
+    //fEventVariables.Set("CherenkovAngle", peakangle);
+    delete hcheren;
+    return peakangle;
+    //    printf("Cherenkov angle is %f\n",  peakangle);
+    
+    
+
+}
+
