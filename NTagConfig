@@ -6,6 +6,7 @@ vy             0
 vz             0
 PVXRES         0
 PVXBIAS        0
+correct_tof    true
 
 # delayed vertex
 # available options: trms, bonsai, lowfit, prompt
@@ -20,6 +21,8 @@ NHITSMX        400
 N200MX         1000
 TMINPEAKSEP    200
 TCANWIDTH      14
+MINNHITS       4
+MAXNHITS       400
 
 # MC labeling
 TMATCHWINDOW   50
@@ -34,6 +37,8 @@ weight default
 
 # MC noise
 add_noise      false
+repeat_noise   true
+noise_path     /disk02/calib3/usr/han/dummy
 noise_type     sk6
 TNOISESTART    2
 TNOISEEND      536
@@ -46,9 +51,10 @@ TRBNWIDTH      0
 NODHITMX       100000
 
 # SK I/O options
-SKOPTN         31,30,26,25
-SKBADOPT       0
-REFRUNNO       62428
+SKGEOMETRY     5
+SKOPTN         31,30,25
+SKBADOPT       55
+REFRUNNO       85619
 
 # event processing
 force_flat     0
@@ -63,5 +69,5 @@ GRIDSHRINKRATE 0.5
 VTXMAXRADIUS   5000
 
 # logging
-print          FitT,NHits,DPrompt,FitGoodness,DWall,Beta1,SignalRatio,TagOut,Label,TagIndex,TagClass
+print          FitT,NHits,DPrompt,FitGoodness,DWall,Beta1,SignalRatio,TagOut,Label,TagIndex,DTaggable,TagClass
 debug          false

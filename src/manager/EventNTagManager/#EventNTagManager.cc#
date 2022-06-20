@@ -912,8 +912,7 @@ void EventNTagManager::FindFeatures(Candidate& candidate)
     candidate.Set("Beta3", beta[3]);
     candidate.Set("Beta4", beta[4]);
     candidate.Set("Beta5", beta[5]);
-    candidate.Set("Beta14", (beta[1] + 4*beta[4]));
-    
+
     // DWall
     auto dirVec = hitsInTCANWIDTH[HitFunc::Dir];
 

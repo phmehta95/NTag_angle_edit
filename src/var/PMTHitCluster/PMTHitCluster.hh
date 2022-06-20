@@ -22,7 +22,11 @@ class PMTHitCluster : public Cluster<PMTHit>, public TreeOut
     public:
         PMTHitCluster();
         PMTHitCluster(sktqz_common sktqz);
+<<<<<<< HEAD
         PMTHitCluster(sktqaz_common sktqaz); 
+=======
+        PMTHitCluster(sktqaz_common sktqaz);
+>>>>>>> 030e87beaa8c96090057e292df276de5d7db0b56
         PMTHitCluster(TQReal* tqreal, int flag=2/* default: in-gate */);
 
         void Append(const PMTHit& hit);

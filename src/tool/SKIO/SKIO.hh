@@ -72,17 +72,17 @@ class SKIO
         FileFormat GetFileFormat() { return fFileFormat; }
 
         const char* GetSKOption() { return fSKOption.Data(); }
-        void SetSKOption(const char* skOption) { fSKOption = skOption; }
-        void AddSKOption(int opt) { fSKOption += ("," + std::to_string(opt)); }
+        static void SetSKOption(std::string skOption) { fSKOption = skOption; }
+        static void AddSKOption(int opt) { fSKOption += ("," + std::to_string(opt)); }
 
-        int GetSKGeometry() { return fSKGeometry; }
-        void SetSKGeometry(int skGeometry) { fSKGeometry = skGeometry; }
+        static int GetSKGeometry() { return fSKGeometry; }
+        static void SetSKGeometry(int skGeometry) { fSKGeometry = skGeometry; }
 
-        int GetSKBadChOption() { return fSKBadChOption; }
-        void SetSKBadChOption(int skBadChOption) { fSKBadChOption = skBadChOption; }
+        static int GetSKBadChOption() { return fSKBadChOption; }
+        static void SetSKBadChOption(int skBadChOption) { fSKBadChOption = skBadChOption; }
 
-        int GetRefRunNo() { return fRefRunNo; }
-        void SetRefRunNo(int refRunNo) { fRefRunNo = refRunNo; }
+        static int GetRefRunNo() { return fRefRunNo; }
+        static void SetRefRunNo(int refRunNo) { fRefRunNo = refRunNo; }
 
         static void ClearTQCommon();
         static void SetSecondaryCommon(FileFormat format=mZBS);
@@ -94,10 +94,6 @@ class SKIO
         IOMode fIOMode;
         FileFormat fFileFormat;
         TString fFilePath;
-        TString fSKOption;
-        int fSKGeometry;
-        int fSKBadChOption;
-        int fRefRunNo;
 
         int fNEvents, fCurrentEventID;
 
@@ -106,6 +102,11 @@ class SKIO
         static TString fInFilePath;
         static TString fOutFilePath;
         static bool fIsZEBRAInitialized;
+
+        static TString fSKOption;
+        static int fSKGeometry;
+        static int fSKBadChOption;
+        static int fRefRunNo;
 
         Printer fMsg;
 };

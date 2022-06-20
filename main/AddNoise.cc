@@ -26,22 +26,26 @@ int main(int argc, char **argv)
 
     // Read input MC
     SKIO inputMC = SKIO(inputFilePath, mInput);
+
+    SKIO::SetSKGeometry(settings.GetInt("SKGEOMETRY"));
+    SKIO::SetSKOption("31,30");
+    SKIO::SetSKBadChOption(0);
+    SKIO::SetRefRunNo(settings.GetInt("REFRUNNO"));
+
     inputMC.OpenFile();
     auto nInputEvents = inputMC.GetNumberOfEvents();
 
     // Open output MC
     SKIO outputMC = SKIO(outputFilePath, mOutput);
     outputMC.OpenFile();
+    outputMC.DumpSettings();
 
     msg.Print(Form("Input file: %s", inputFilePath.c_str()));
     msg.Print(Form("Number of events in input file: %d", nInputEvents));
     msg.Print(Form("Output file: %s", outputFilePath.c_str()));
 
-    NoiseManager noiseManager(settings.GetString("noise_type").c_str(), nInputEvents,
-                              settings.GetFloat("TNOISESTART"), settings.GetFloat("TNOISEEND"), settings.GetInt("NOISESEED"));
-    noiseManager.DumpSettings();
-    if (settings.GetBool("debug", false))
-        noiseManager.SetVerbosity(pDEBUG);
+    NoiseManager noiseManager;
+    noiseManager.ApplySettings(settings, nInputEvents);
 
     // Event loop
     for (int eventID=1; eventID<=nInputEvents; eventID++) {
@@ -49,11 +53,18 @@ int main(int argc, char **argv)
 
         // Get input MC hits
         inputMC.ReadEvent(eventID);
-        PMTHitCluster inputMCHits(sktqz_);
+        PMTHitCluster inputMCIDHits(sktqz_);
+        PMTHitCluster inputMCODHits(sktqaz_);
 
         // Append dummy hits
-        noiseManager.AddNoise(&inputMCHits);
-        outputMC.FillTQREAL(inputMCHits);
+        noiseManager.AddIDNoise(&inputMCIDHits);
+        if (settings.GetBool("add_noise_OD", false))
+            noiseManager.AddODNoise(&inputMCODHits);
+
+        inputMCIDHits.Append(inputMCODHits);
+        auto& outputHits = inputMCIDHits;
+
+        outputMC.FillTQREAL(outputHits);
         outputMC.Write();
     }
 

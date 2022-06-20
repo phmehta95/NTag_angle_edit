@@ -50,9 +50,10 @@ int main(int argc, char** argv)
     if (parser.GetOption("-prompt_vertex")=="stmu")
         input.AddSKOption(23);
 
-    input.SetSKOption(settings.GetString("SKOPTN").c_str());
-    input.SetSKBadChOption(settings.GetInt("SKBADOPT"));
-    input.SetRefRunNo(settings.GetInt("REFRUNNO"));
+    SKIO::SetSKGeometry(settings.GetInt("SKGEOMETRY"));
+    SKIO::SetSKOption(settings.GetString("SKOPTN"));
+    SKIO::SetSKBadChOption(settings.GetInt("SKBADOPT"));
+    SKIO::SetRefRunNo(settings.GetInt("REFRUNNO"));
 
     // output MC
     if (!outDataFilePath.empty()) {
@@ -77,12 +78,8 @@ int main(int argc, char** argv)
     // read noise settings
     NoiseManager* noiseManager = nullptr;
     if (settings.GetBool("add_noise", false)) {
-        std::string noiseType; settings.Get("noise_type", noiseType);
-        float tNoiseStart = settings.GetFloat("TNOISESTART");
-        float tNoiseEnd   = settings.GetFloat("TNOISEEND");
-        int   noiseSeed   = settings.GetInt("NOISESEED");
-        noiseManager = new NoiseManager(noiseType, nInputEvents, tNoiseStart, tNoiseEnd, noiseSeed);
-        noiseManager->DumpSettings();
+        noiseManager = new NoiseManager;
+        noiseManager->ApplySettings(settings, nInputEvents);
         ntagManager.SetNoiseManager(noiseManager);
     }
 

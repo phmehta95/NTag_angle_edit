@@ -13,6 +13,7 @@
 #include <geotnkC.h>
 
 #include "Calculator.hh"
+<<<<<<< HEAD
 #include "skparmC.h"
 #include "sktqC.h"
 #include "skheadC.h"
@@ -47,9 +48,12 @@
 #include "TFitResultPtr.h"
 #include "TFitResult.h"
 #include "TreeManager.h"
+=======
+>>>>>>> 030e87beaa8c96090057e292df276de5d7db0b56
 
 std::default_random_engine c_ranGen;
 TRandom3 ranGen;
+
 
 float Dot(const float a[3], const float b[3])
 {
@@ -174,8 +178,13 @@ unsigned int GetMaxIndex(std::vector<float>& vec)
 
 void SetSeed(int seed)
 {
+<<<<<<< HEAD
   c_ranGen.seed(seed);
   ranGen.SetSeed(seed);
+=======
+    c_ranGen.seed(seed);
+    ranGen.SetSeed(seed);
+>>>>>>> 030e87beaa8c96090057e292df276de5d7db0b56
 }
 
 TString PickFile(TString dirPath, const char* extension)

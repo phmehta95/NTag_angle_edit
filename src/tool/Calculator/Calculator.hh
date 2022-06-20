@@ -19,6 +19,10 @@
 #include <string>
 #include <cmath>
 #include <random>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 030e87beaa8c96090057e292df276de5d7db0b56
 #include <TRandom3.h>
 #include <TString.h>
 #include <TVector3.h>
@@ -31,6 +35,10 @@
 /** Global random number generator */
 extern TRandom3 ranGen;
 extern std::default_random_engine c_ranGen;
+<<<<<<< HEAD
+=======
+
+>>>>>>> 030e87beaa8c96090057e292df276de5d7db0b56
 extern "C"
 {
     /**
@@ -263,6 +271,16 @@ void Shuffle(std::vector<T>& vec)
     std::shuffle(std::begin(vec), std::end(vec), c_ranGen);
 }
 
+
+/**
+ * @brief Shuffle a given vector.
+ * @param vec The input vector.
+ */
+template <typename T>
+void Shuffle(std::vector<T>& vec)
+{
+    std::shuffle(std::begin(vec), std::end(vec), c_ranGen);
+}
 
 /**
  * @brief Pick a random subdirectory from a given path.
